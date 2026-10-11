@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0c0a" id="themeColorMeta">
+<title>МуриноБот</title>
+<link rel="manifest" href="manifest.json">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root, [data-theme="dark"] {
+    --bg: #0a0c0a; --card: #161a16; --card-2: #1c221c;
+    --border: #242a24; --text: #d4d8d4; --text-dim: #7a847a;
+    --text-muted: #4a524a; --accent: #7ba87b; --accent-dim: #4a7a4a;
+    --accent-glow: rgba(123,168,123,0.25);
+    --user-bubble: #253025; --user-text: #e2e8e2;
+    --danger: #a85a5a; --warn: #c89a5a; --fog-red: #8a4a4a;
+    --sidebar: #0e1210;
+    --radius-bubble: 18px; --radius-card: 12px; --gap-msg: 12px;
+  }
+  [data-theme="light"] { --bg: #f5f6f4; --card: #fff; --card-2: #eef0ec; --border: #d8ddd4; --text: #1e2420; --text-dim: #5a665a; --text-muted: #8a968a; --accent: #3a7a3a; --accent-dim: #2a5a2a; --accent-glow: rgba(58,122,58,0.2); --user-bubble: #d8ead8; --user-text: #1e2420; --danger: #b04040; --warn: #a87a2a; --fog-red: #a84040; --sidebar: #e8ece4; }
+  [data-theme="black"] { --bg: #000; --card: #0a0a0a; --card-2: #101010; --border: #1a1a1a; --text: #c8c8c8; --text-dim: #6a6a6a; --text-muted: #3a3a3a; --accent: #6a9a6a; --accent-dim: #3a5a3a; --accent-glow: rgba(106,154,106,0.25); --user-bubble: #1a2a1a; --user-text: #d4d4d4; --danger: #9a4a4a; --warn: #a87a3a; --fog-red: #7a3a3a; --sidebar: #050505; }
+  [data-theme="murino"] { --bg: #0a140a; --card: #142014; --card-2: #1a281a; --border: #2a3a2a; --text: #d8e8d8; --text-dim: #7a9a7a; --text-muted: #4a6a4a; --accent: #8ac88a; --accent-dim: #5a9a5a; --accent-glow: rgba(138,200,138,0.3); --user-bubble: #2a4a2a; --user-text: #e8f0e8; --danger: #b05a5a; --warn: #c8a85a; --fog-red: #a04a4a; --sidebar: #081008; }
+  body.no-animations * { animation-duration: 0s !important; transition-duration: 0s !important; }
+  html, body { margin: 0; padding: 0; height: 100%; overscroll-behavior: none; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: var(--font-size, 15px); line-height: 1.5; height: 100dvh; overflow: hidden; transition: background 0.35s, color 0.35s; }
+  * { transition-property: background-color, border-color, color, box-shadow; transition-duration: 0.25s; transition-timing-function: ease; }
+  .app-layout { display: grid; grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: 100dvh; }
+  .sidebar-left, .sidebar-right { display: none; }
+  header.mobile-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; background: color-mix(in srgb, var(--bg) 90%, transparent); backdrop-filter: blur(20px); flex-shrink: 0; }
+  .menu-btn { width: 38px; height: 38px; border-radius: 10px; background: transparent; border: 1px solid var(--border); color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .menu-btn:hover { background: var(--card); border-color: var(--accent-dim); transform: scale(1.05); }
+  .logo-box { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, var(--card-2), var(--card)); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; }
+  .logo-box:hover { transform: scale(1.1) rotate(-5deg); box-shadow: 0 0 15px var(--accent-glow); }
+  .logo-box svg { width: 20px; height: 20px; }
+  .title-block { flex: 1; min-width: 0; }
+  .title { font-size: 15px; font-weight: 600; margin: 0; }
+  .subtitle { font-size: 11px; color: var(--text-dim); margin: 1px 0 0; }
+  .fog-indicator { display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 8px; background: var(--card); border: 1px solid var(--border); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-dim); flex-shrink: 0; }
+  .fog-indicator.hidden { display: none; }
+  .fog-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .fog-indicator[data-level="средний"] .fog-dot { background: var(--warn); }
+  .fog-indicator[data-level="высокий"] .fog-dot { background: var(--fog-red); animation: fogPulse 1s infinite; }
+  @keyframes fogPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(1.3)} }
+  .screen { flex: 1; display: none; flex-direction: column; overflow: hidden; }
+  .screen.active { display: flex; animation: screenIn 0.4s ease; }
+  @keyframes screenIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .mobile-screens { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  #welcomeScreen { align-items: center; justify-content: center; padding: 30px 24px; text-align: center; gap: 14px; overflow-y: auto; }
+  .beta-banner { font-size: 60px; font-weight: 900; letter-spacing: 10px; color: var(--accent); text-shadow: 0 0 40px var(--accent-glow), 0 0 80px var(--accent-glow); line-height: 1; margin: 0; font-family: monospace; animation: betaPulse 2s ease-in-out infinite; }
+  @keyframes betaPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.75; transform: scale(1.04); } }
+  .version-tag { font-size: 12px; color: var(--warn); letter-spacing: 3px; text-transform: uppercase; font-weight: 600; margin-top: -8px; }
+  #welcomeScreen h2 { font-size: 22px; color: var(--accent); margin: 0; letter-spacing: 3px; }
+  .version-badge { display: inline-block; padding: 5px 14px; border-radius: 20px; background: var(--card); border: 1px solid var(--accent-dim); color: var(--accent); font-size: 11px; font-family: monospace; letter-spacing: 0.1em; }
+  .welcome-text { color: var(--text-dim); font-size: 14px; line-height: 1.7; max-width: 340px; margin: 0; }
+  #startBtn { padding: 16px 48px; font-size: 16px; font-weight: 600; background: linear-gradient(135deg, var(--accent-dim), var(--accent)); color: #e8f0e8; border: none; border-radius: 14px; cursor: pointer; font-family: inherit; box-shadow: 0 4px 20px var(--accent-glow); }
+  #startBtn:hover { transform: translateY(-2px) scale(1.05); box-shadow: 0 8px 30px var(--accent-glow); }
+  .hint { color: var(--text-muted); font-size: 11.5px; margin-top: 8px; max-width: 320px; line-height: 1.6; }
+  .facts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-width: 400px; margin: 0 auto; width: 100%; }
+  .fact-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 12px 14px; text-align: left; }
+  .fact-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+  .fact-value { font-size: 13px; color: var(--accent); font-weight: 600; }
+  .easter-egg-welcome { font-size: 11px; color: var(--text-muted); letter-spacing: 0.15em; font-family: monospace; }
+  #progressPanel { padding: 16px; background: var(--card); border-bottom: 1px solid var(--border); display: none; flex-direction: column; gap: 8px; }
+  #progressPanel.show { display: flex; }
+  #progressStage { color: var(--accent); font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  #progressStage::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 1.4s infinite; flex-shrink: 0; box-shadow: 0 0 10px var(--accent); }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
+  #progressFile { color: var(--text-dim); font-size: 12px; font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-wrap { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  #progressBar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent-dim), var(--accent), var(--accent-dim)); background-size: 200% 100%; transition: width 0.3s; border-radius: 3px; animation: shimmer 2s linear infinite; }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  #progressPercent { color: var(--accent); font-size: 12px; text-align: right; font-weight: 600; }
+  #messages { flex: 1; overflow-y: auto; padding: 20px 16px; display: flex; flex-direction: column; gap: var(--gap-msg); scroll-behavior: smooth; }
+  .msg { max-width: 90%; padding: 12px 16px; border-radius: var(--radius-bubble); white-space: pre-wrap; word-wrap: break-word; font-size: var(--msg-size, 14.5px); line-height: 1.6; animation: msgIn 0.45s cubic-bezier(0.34,1.56,0.64,1); cursor: pointer; position: relative; }
+  @keyframes msgIn { from { opacity: 0; transform: translateY(15px) scale(0.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  .msg.user { align-self: flex-end; background: var(--user-bubble); color: var(--user-text); border: 1px solid rgba(123,168,123,0.15); border-bottom-right-radius: 6px; }
+  .msg.bot { align-self: flex-start; background: var(--card); border: 1px solid var(--border); border-bottom-left-radius: 6px; }
+  .msg.system { align-self: center; background: transparent; color: var(--text-muted); font-size: 11.5px; font-style: italic; border: none; padding: 4px; }
+  .msg.copied::after { content: '✓'; position: absolute; top: -8px; right: 8px; background: var(--accent); color: #0a0c0a; padding: 3px 8px; border-radius: 8px; font-size: 10px; font-weight: 600; }
+  .typing { display: inline-flex; gap: 6px; align-items: center; padding: 6px 0; }
+  .typing span { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); animation: typingPulse 1.2s ease-in-out infinite; box-shadow: 0 0 10px var(--accent-glow); }
+  .typing span:nth-child(2) { animation-delay: 0.15s; }
+  .typing span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes typingPulse { 0%,100% { opacity:0.3; transform:scale(0.7); } 50% { opacity:1; transform:scale(1.3); } }
+  .quick-actions { padding: 0 12px 8px; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; flex-shrink: 0; }
+  .quick-actions.hidden { display: none; }
+  .quick-actions::-webkit-scrollbar { display: none; }
+  .quick-btn { background: var(--card); border: 1px solid var(--border); color: var(--text-dim); padding: 7px 14px; border-radius: 16px; font-size: 12px; cursor: pointer; white-space: nowrap; font-family: inherit; }
+  .quick-btn:hover { color: var(--accent); border-color: var(--accent-dim); transform: translateY(-2px); box-shadow: 0 4px 12px var(--accent-glow); }
+  .input-area { padding: 8px 12px 20px; padding-bottom: max(20px, env(safe-area-inset-bottom)); flex-shrink: 0; }
+  .input-wrap { display: flex; background: var(--card-2); border: 1px solid var(--border); border-radius: 24px; padding: 6px 6px 6px 18px; }
+  .input-wrap:focus-within { border-color: var(--accent-dim); box-shadow: 0 0 0 3px var(--accent-glow); }
+  #input { flex: 1; background: transparent; border: none; outline: none; color: var(--text); font-size: 15px; padding: 10px 0; font-family: inherit; }
+  #input:disabled { opacity: 0.4; }
+  #sendBtn { width: 40px; height: 40px; border-radius: 50%; background: var(--accent-dim); border: none; color: #e8f0e8; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; }
+  #sendBtn:hover:not(:disabled) { transform: scale(1.12) rotate(-8deg); box-shadow: 0 0 20px var(--accent-glow); background: var(--accent); }
+  #sendBtn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .settings-content, .help-content { flex: 1; overflow-y: auto; padding: 20px 18px; }
+  .setting-group { margin-bottom: 20px; }
+  .setting-label { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+  .setting-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 14px 16px; }
+  .setting-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; gap: 12px; }
+  .setting-row + .setting-row { border-top: 1px solid var(--border); }
+  .setting-name { font-size: 14px; }
+  .setting-value { font-size: 13px; color: var(--accent); font-family: monospace; min-width: 45px; text-align: right; }
+  .setting-hint { font-size: 11px; color: var(--text-muted); font-style: italic; margin-top: 6px; }
+  .danger-btn, .action-btn { background: var(--danger); color: #fff; border: none; padding: 12px 20px; border-radius: 10px; font-family: inherit; font-size: 14px; cursor: pointer; width: 100%; margin-top: 8px; }
+  .action-btn { background: var(--accent-dim); margin-top: 0; margin-bottom: 8px; }
+  .danger-btn:hover, .action-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 15px var(--accent-glow); }
+  .toggle { position: relative; width: 44px; height: 24px; background: var(--border); border-radius: 12px; cursor: pointer; flex-shrink: 0; }
+  .toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: var(--card); transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+  .toggle.on { background: var(--accent-dim); }
+  .toggle.on::after { left: 22px; background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
+  .theme-picker { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
+  .theme-option { aspect-ratio: 1; border-radius: 10px; cursor: pointer; border: 2px solid var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 6px; font-size: 9px; color: var(--text-dim); font-family: inherit; background: transparent; }
+  .theme-option:hover { transform: translateY(-2px); }
+  .theme-option.selected { border-color: var(--accent); box-shadow: 0 0 12px var(--accent-glow); }
+  .theme-option .swatch { width: 22px; height: 22px; border-radius: 50%; border: 1px solid rgba(128,128,128,0.3); }
+  .theme-option[data-theme-name="dark"] .swatch { background: linear-gradient(135deg, #0a0c0a, #7ba87b); }
+  .theme-option[data-theme-name="light"] .swatch { background: linear-gradient(135deg, #f5f6f4, #3a7a3a); }
+  .theme-option[data-theme-name="black"] .swatch { background: linear-gradient(135deg, #000, #6a9a6a); }
+  .theme-option[data-theme-name="murino"] .swatch { background: linear-gradient(135deg, #0a140a, #8ac88a); }
+  .accent-picker { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; margin-top: 8px; }
+  .accent-btn { aspect-ratio: 1; border-radius: 50%; cursor: pointer; border: 2px solid transparent; padding: 0; }
+  .accent-btn:hover { transform: scale(1.15); }
+  .accent-btn.selected { border-color: var(--text); box-shadow: 0 0 12px currentColor; }
+  .accent-btn[data-accent="green"] { background: #7ba87b; color: #7ba87b; }
+  .accent-btn[data-accent="blue"] { background: #6a9ac8; color: #6a9ac8; }
+  .accent-btn[data-accent="purple"] { background: #9a7ac8; color: #9a7ac8; }
+  .accent-btn[data-accent="red"] { background: #c87a7a; color: #c87a7a; }
+  .accent-btn[data-accent="orange"] { background: #c89a5a; color: #c89a5a; }
+  .accent-btn[data-accent="pink"] { background: #c87aa8; color: #c87aa8; }
+  .accent-btn[data-accent="teal"] { background: #5ac8b8; color: #5ac8b8; }
+  .accent-btn[data-accent="gray"] { background: #8a9a8a; color: #8a9a8a; }
+  .slider-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+  .slider-row input[type="range"] { flex: 1; -webkit-appearance: none; height: 4px; background: var(--border); border-radius: 2px; outline: none; }
+  .slider-row input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); cursor: pointer; box-shadow: 0 0 8px var(--accent-glow); }
+  .help-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 18px; margin-bottom: 16px; }
+  .help-card h3 { margin: 0 0 10px; font-size: 15px; color: var(--accent); }
+  .help-card p, .help-card li { font-size: 13.5px; line-height: 1.7; color: var(--text-dim); margin: 6px 0; }
+  .help-card ul { padding-left: 18px; margin: 8px 0; }
+  .help-card code { background: var(--card-2); padding: 2px 6px; border-radius: 4px; font-size: 12px; color: var(--accent); }
+  .help-card .season { border-left: 3px solid var(--accent-dim); padding-left: 10px; margin: 10px 0; }
+  .help-card .season b { color: var(--accent); }
+  .drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; display: none; backdrop-filter: blur(4px); }
+  .drawer-overlay.open { display: block; }
+  .drawer { position: fixed; top: 0; left: -320px; width: 300px; height: 100%; background: var(--card); border-right: 1px solid var(--border); z-index: 101; transition: left 0.35s cubic-bezier(0.34,1.56,0.64,1); display: flex; flex-direction: column; padding: 20px 0; box-shadow: 4px 0 30px rgba(0,0,0,0.4); }
+  .drawer.open { left: 0; }
+  .drawer-header { padding: 0 20px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+  .drawer-title { font-size: 16px; font-weight: 600; }
+  .drawer-subtitle { font-size: 11px; color: var(--text-dim); }
+  .drawer-nav { flex: 1; padding: 12px 0; overflow-y: auto; }
+  .drawer-item { display: flex; align-items: center; gap: 14px; padding: 14px 20px; cursor: pointer; color: var(--text); font-size: 14.5px; border: none; background: transparent; width: 100%; text-align: left; font-family: inherit; }
+  .drawer-item:hover { background: var(--card-2); transform: translateX(6px); color: var(--accent); }
+  .drawer-item .icon { font-size: 18px; width: 22px; text-align: center; }
+  .drawer-footer { padding: 16px 20px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-muted); }
+  .drawer-footer .quote { font-style: italic; margin-bottom: 6px; }
+  #toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--card); border: 1px solid var(--accent-dim); color: var(--accent); padding: 12px 20px; border-radius: 12px; font-size: 13px; font-style: italic; opacity: 0; transition: all 0.4s cubic-bezier(0.34,1.56,0.64,1); pointer-events: none; z-index: 200; max-width: 80vw; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @media (min-width: 1024px) {
+    .app-layout { grid-template-columns: 260px 1fr 320px; grid-template-rows: 1fr; }
+    header.mobile-header { display: none; }
+    .mobile-screens { grid-column: 2; }
+    .sidebar-left { display: flex; flex-direction: column; background: var(--sidebar); border-right: 1px solid var(--border); padding: 20px 0; overflow-y: auto; grid-column: 1; }
+    .sb-left-header { padding: 0 20px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+    .sb-left-header .titles { flex: 1; }
+    .sb-left-header .title { font-size: 15px; font-weight: 600; margin: 0; }
+    .sb-left-header .subtitle { font-size: 11px; color: var(--warn); font-weight: 600; }
+    .sb-section { padding: 14px 12px 8px; }
+    .sb-section-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; padding: 0 8px 8px; }
+    .sb-nav-btn { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; color: var(--text-dim); font-size: 14px; font-family: inherit; background: transparent; border: none; cursor: pointer; width: 100%; text-align: left; margin-bottom: 2px; }
+    .sb-nav-btn:hover { background: var(--card); color: var(--text); transform: translateX(4px); }
+    .sb-nav-btn.active { background: var(--card); color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+    .sb-nav-btn .ic { font-size: 16px; width: 20px; }
+    .sb-quick-btn { display: block; width: 100%; text-align: left; padding: 8px 12px; border-radius: 8px; color: var(--text-dim); font-size: 13px; font-family: inherit; background: transparent; border: none; cursor: pointer; margin-bottom: 2px; }
+    .sb-quick-btn:hover { background: var(--card); color: var(--accent); transform: translateX(4px); }
+    .sb-quick-btn::before { content: '› '; color: var(--text-muted); }
+    .sb-left-footer { margin-top: auto; padding: 16px 20px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-muted); }
+    .sb-left-footer .quote { font-style: italic; margin-bottom: 6px; }
+    .sidebar-right { display: flex; flex-direction: column; background: var(--sidebar); border-left: 1px solid var(--border); padding: 20px 0; overflow-y: auto; grid-column: 3; }
+    .sb-right-header { padding: 0 18px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .sb-right-header h3 { font-size: 13px; margin: 0; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+    .sb-right-section { padding: 14px 18px; border-bottom: 1px solid var(--border); }
+    .sb-right-section .label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+    .sb-info-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 13px; }
+    .sb-info-row .name { color: var(--text-dim); }
+    .sb-info-row .val { color: var(--accent); font-family: monospace; font-size: 12px; }
+    .sb-theme-mini { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 6px; }
+    .sb-theme-btn { aspect-ratio: 1; border-radius: 8px; cursor: pointer; border: 2px solid var(--border); padding: 0; background: transparent; }
+    .sb-theme-btn.selected { border-color: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
+    .sb-theme-btn .sw { display: block; width: 100%; height: 100%; border-radius: 6px; }
+    .sb-theme-btn[data-t="dark"] .sw { background: linear-gradient(135deg, #0a0c0a, #7ba87b); }
+    .sb-theme-btn[data-t="light"] .sw { background: linear-gradient(135deg, #f5f6f4, #3a7a3a); }
+    .sb-theme-btn[data-t="black"] .sw { background: linear-gradient(135deg, #000, #6a9a6a); }
+    .sb-theme-btn[data-t="murino"] .sw { background: linear-gradient(135deg, #0a140a, #8ac88a); }
+    .sb-toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; font-size: 13px; color: var(--text-dim); }
+    .quick-actions { display: none !important; }
+    #toast { bottom: 30px; right: 30px; left: auto; transform: translateY(20px); }
+    #toast.show { transform: translateY(0); }
+  }
+</style>
+</head>
+<body data-theme="dark">
+
+<div class="app-layout">
+
+  <aside class="sidebar-left">
+    <div class="sb-left-header">
+      <div class="logo-box" id="logoBoxPC">
+        <svg viewBox="0 0 16 16" shape-rendering="crispEdges"><rect x="2" y="1" width="12" height="1" fill="#7ba87b" opacity="0.3"/><rect x="1" y="2" width="14" height="1" fill="#7ba87b" opacity="0.5"/><rect x="0" y="4" width="16" height="1" fill="#7ba87b" opacity="0.7"/><rect x="0" y="6" width="16" height="1" fill="#7ba87b"/><rect x="4" y="6" width="2" height="2" fill="#0a0c0a"/><rect x="10" y="6" width="2" height="2" fill="#0a0c0a"/></svg>
+      </div>
+      <div class="titles"><p class="title">МуриноБот</p><p class="subtitle">FINAL · v18.0</p></div>
+    </div>
+    <div class="sb-section">
+      <div class="sb-section-label">Разделы</div>
+      <button class="sb-nav-btn active" data-screen="chatScreen"><span class="ic">💬</span> Чат</button>
+      <button class="sb-nav-btn" data-screen="archiveScreen"><span class="ic">📚</span> Архив</button>
+      <button class="sb-nav-btn" data-screen="settingsScreen"><span class="ic">⚙️</span> Настройки</button>
+      <button class="sb-nav-btn" data-screen="helpScreen"><span class="ic">📖</span> Справка</button>
+    </div>
+    <div class="sb-section">
+      <div class="sb-section-label">Быстрые вопросы</div>
+      <button class="sb-quick-btn" data-q="Расскажи подробно про Мурино">Про Мурино</button>
+      <button class="sb-quick-btn" data-q="Кто такой Фог">Про Фога</button>
+      <button class="sb-quick-btn" data-q="Расскажи про Друна">Про Друна</button>
+      <button class="sb-quick-btn" data-q="Опиши все сезоны">Все сезоны</button>
+      <button class="sb-quick-btn" data-q="Что такое бурмалда">Про бурмалду</button>
+    </div>
+    <div class="sb-left-footer"><div class="quote" id="footerQuotePC">«Справочная работает круглосуточно.»</div><div id="footerIdPC">Сборка 1488</div></div>
+  </aside>
+
+  <header class="mobile-header">
+    <button class="menu-btn" id="menuBtn">☰</button>
+    <div class="logo-box" id="logoBox"><svg viewBox="0 0 16 16" shape-rendering="crispEdges"><rect x="2" y="1" width="12" height="1" fill="#7ba87b" opacity="0.3"/><rect x="1" y="2" width="14" height="1" fill="#7ba87b" opacity="0.5"/><rect x="0" y="4" width="16" height="1" fill="#7ba87b" opacity="0.7"/><rect x="0" y="6" width="16" height="1" fill="#7ba87b"/><rect x="4" y="6" width="2" height="2" fill="#0a0c0a"/><rect x="10" y="6" width="2" height="2" fill="#0a0c0a"/></svg></div>
+    <div class="title-block"><p class="title">МуриноБот</p><p class="subtitle" id="headerSub">FINAL · v18.0</p></div>
+    <div class="fog-indicator" id="fogIndicatorMobile" data-level="низкий"><span class="fog-dot"></span><span id="fogLabelMobile">Фог</span></div>
+  </header>
+
+  <main class="mobile-screens">
+    <div class="screen active" id="welcomeScreen">
+      <div class="beta-banner">BETA</div>
+      <div class="version-tag">финальная версия v18.0</div>
+      <h2>МУРИНОБОТ</h2>
+      <div class="version-badge">v18.0 FINAL · QWEN 0.5B (WASM)</div>
+      <p class="welcome-text">Информационный ассистент администрации Мурино. Модель работает в браузере, офлайн после первой загрузки.</p>
+      <button id="startBtn">Начать работу</button>
+      <div class="facts-grid">
+        <div class="fact-card"><div class="fact-label">Сезон</div><div class="fact-value">Мурино · 4/7</div></div>
+        <div class="fact-card"><div class="fact-label">Фог</div><div class="fact-value" id="factFog">Низкий</div></div>
+        <div class="fact-card"><div class="fact-label">Этаж</div><div class="fact-value">1488 / 666</div></div>
+        <div class="fact-card"><div class="fact-label">Котость</div><div class="fact-value">Спит</div></div>
+      </div>
+      <div class="hint">Первый запуск — загрузка модели Qwen2.5-0.5B (~483 МБ). Дальше работает офлайн.</div>
+      <div class="easter-egg-welcome" id="welcomeEgg">ЛИНИЯ СВЯЗИ АКТИВНА</div>
+    </div>
+
+    <div class="screen" id="chatScreen">
+      <div id="progressPanel">
+        <div id="progressStage">Подготовка...</div>
+        <div id="progressFile"></div>
+        <div class="bar-wrap"><div id="progressBar"></div></div>
+        <div id="progressPercent">0%</div>
+      </div>
+      <div id="messages"></div>
+      <div class="quick-actions" id="quickActions">
+        <button class="quick-btn" data-q="Расскажи подробно про Мурино">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg>
+          Мурино
+        </button>
+        <button class="quick-btn" data-q="Кто такой Фог">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2 12h2M20 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/></svg>
+          Фог
+        </button>
+        <button class="quick-btn" data-q="Расскажи про Друна">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Друн
+        </button>
+        <button class="quick-btn" data-q="Опиши все сезоны">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Сезоны
+        </button>
+        <button class="quick-btn" data-q="Что такое бурмалда">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg>
+          Бурмалда
+        </button>
+      </div>
+      <div class="input-area">
+        <div class="input-wrap">
+          <input id="input" type="text" placeholder="Введите ваш вопрос..." autocomplete="off" disabled>
+          <button id="sendBtn" disabled>➤</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen" id="archiveScreen">
+      <div class="help-content">
+        <div class="help-card"><h3>📚 Архив сезонов</h3></div>
+        <div class="help-card">
+          <div class="season"><b>Сезон 1 · Темщики</b><br>Бизнес, провалы, долги.</div>
+          <div class="season"><b>Сезон 2 · Армия</b><br>Служба, казарма.</div>
+          <div class="season"><b>Сезон 3 · Общага</b><br>Учёба, первое появление Фога.</div>
+          <div class="season"><b>Сезон 4 · Мурино</b><br>Гигахрущёвки, Фог, этажи 666 и 1488. Малекус.</div>
+          <div class="season"><b>Сезон 5 · Село Молочное</b><br>Трамвай, паучки.</div>
+          <div class="season"><b>Сезон 6 · Мытищи</b><br>Мойдодыр, Артур.</div>
+          <div class="season"><b>Сезон 7 · Элджеевка</b><br>Шприцы, «танцующие».</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen" id="settingsScreen">
+      <div class="settings-content">
+        <div class="setting-group">
+          <div class="setting-label">🎨 Тема</div>
+          <div class="setting-card">
+            <div class="theme-picker">
+              <button class="theme-option" data-theme-name="dark"><div class="swatch"></div>Тёмная</button>
+              <button class="theme-option" data-theme-name="light"><div class="swatch"></div>Светлая</button>
+              <button class="theme-option" data-theme-name="black"><div class="swatch"></div>Чёрная</button>
+              <button class="theme-option" data-theme-name="murino"><div class="swatch"></div>Мурино</button>
+            </div>
+          </div>
+        </div>
+        <div class="setting-group">
+          <div class="setting-label">🎨 Акцент</div>
+          <div class="setting-card">
+            <div class="accent-picker">
+              <button class="accent-btn" data-accent="green"></button>
+              <button class="accent-btn" data-accent="blue"></button>
+              <button class="accent-btn" data-accent="purple"></button>
+              <button class="accent-btn" data-accent="red"></button>
+              <button class="accent-btn" data-accent="orange"></button>
+              <button class="accent-btn" data-accent="pink"></button>
+              <button class="accent-btn" data-accent="teal"></button>
+              <button class="accent-btn" data-accent="gray"></button>
+            </div>
+          </div>
+        </div>
+        <div class="setting-group">
+          <div class="setting-label">🔤 Текст</div>
+          <div class="setting-card">
+            <div class="slider-row"><span class="setting-name">Размер</span><input type="range" id="fontSlider" min="12" max="22" step="1" value="15"><span class="setting-value" id="fontVal">15</span></div>
+            <div class="slider-row"><span class="setting-name">Скругление</span><input type="range" id="radiusSlider" min="0" max="30" step="2" value="18"><span class="setting-value" id="radiusVal">18</span></div>
+            <div class="slider-row"><span class="setting-name">Плотность</span><input type="range" id="gapSlider" min="4" max="30" step="2" value="12"><span class="setting-value" id="gapVal">12</span></div>
+          </div>
+        </div>
+        <div class="setting-group">
+          <div class="setting-label">🧠 Параметры модели</div>
+          <div class="setting-card">
+            <div class="slider-row"><span class="setting-name">Творчество</span><input type="range" id="tempSlider" min="0.1" max="1.2" step="0.05" value="0.35"><span class="setting-value" id="tempVal">0.35</span></div>
+            <div class="slider-row"><span class="setting-name">Top-p</span><input type="range" id="topPSlider" min="0.5" max="1" step="0.05" value="0.85"><span class="setting-value" id="topPVal">0.85</span></div>
+            <div class="slider-row"><span class="setting-name">Штраф повторов</span><input type="range" id="repSlider" min="1" max="1.5" step="0.05" value="1.4"><span class="setting-value" id="repVal">1.40</span></div>
+            <div class="slider-row"><span class="setting-name">Длина</span><input type="range" id="maxTokSlider" min="100" max="600" step="50" value="250"><span class="setting-value" id="maxTokVal">250</span></div>
+          </div>
+          <div class="setting-hint">Творчество 0.35 — не бредит. Выше 0.8 — может выдумывать.</div>
+        </div>
+        <div class="setting-group">
+          <div class="setting-label">💬 Чат</div>
+          <div class="setting-card">
+            <div class="setting-row"><span class="setting-name">Автоскролл</span><div class="toggle on" id="toggleAutoscroll"></div></div>
+            <div class="setting-row"><span class="setting-name">Копирование по тапу</span><div class="toggle on" id="toggleCopyOnTap"></div></div>
+            <div class="setting-row"><span class="setting-name">Автосохранение</span><div class="toggle on" id="toggleSaveChat"></div></div>
+          </div>
+        </div>
+        <div class="setting-group">
+          <div class="setting-label">🧩 Интерфейс</div>
+          <div class="setting-card">
+            <div class="setting-row"><span class="setting-name">Быстрые кнопки</span><div class="toggle on" id="toggleQuickBtns"></div></div>
+            <div class="setting-row"><span class="setting-name">Индикатор Фога</span><div class="toggle on" id="toggleFogIndicator"></div></div>
+            <div class="setting-row"><span class="setting-name">Анимации</span><div class="toggle on" id="toggleAnimations"></div></div>
+          </div>
+        </div>
+        <div class="setting-group">
+          <div class="setting-label">📁 Диалог</div>
+          <div class="setting-card">
+            <button class="action-btn" id="exportChatBtn">📤 Экспорт диалога</button>
+            <button class="action-btn" id="importChatBtn">📥 Импорт диалога</button>
+            <button class="danger-btn" id="resetChatBtn">🔄 Сбросить диалог</button>
+            <input type="file" id="importFile" accept=".json" style="display:none">
+          </div>
+        </div>
+        <div class="setting-group">
+          <div class="setting-label">🗑 Сброс</div>
+          <div class="setting-card"><button class="danger-btn" id="resetAllBtn">Сбросить все настройки</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen" id="helpScreen">
+      <div class="help-content">
+        <div class="help-card"><h3>Что это?</h3><p>Локальный ИИ-ассистент. Модель Qwen2.5-0.5B работает в браузере.</p></div>
+        <div class="help-card"><h3>Если ответы странные</h3><p>Уменьши «Творчество» до 0.3 или 0.4 в настройках.</p></div>
+        <div class="help-card"><h3>Язык Мурино</h3><ul><li>Существительные &gt;3 букв → -ость</li><li>«Я» → «Ч», «друг» → «друн»</li><li>Глаголы не коверкаются</li></ul></div>
+      </div>
+    </div>
+  </main>
+
+  <aside class="sidebar-right">
+    <div class="sb-right-header">
+      <h3>Панель</h3>
+      <div class="fog-indicator" id="fogIndicatorPC" data-level="низкий"><span class="fog-dot"></span><span id="fogLabelPC">Фог: низкий</span></div>
+    </div>
+    <div class="sb-right-section">
+      <div class="label">Реестр</div>
+      <div class="sb-info-row"><span class="name">Сезон</span><span class="val">Мурино 4/7</span></div>
+      <div class="sb-info-row"><span class="name">Этаж</span><span class="val">1488 / 666</span></div>
+      <div class="sb-info-row"><span class="name">Сообщений</span><span class="val" id="msgCountPC">0</span></div>
+    </div>
+    <div class="sb-right-section">
+      <div class="label">Тема</div>
+      <div class="sb-theme-mini">
+        <button class="sb-theme-btn" data-t="dark"></button>
+        <button class="sb-theme-btn" data-t="light"></button>
+        <button class="sb-theme-btn" data-t="black"></button>
+        <button class="sb-theme-btn" data-t="murino"></button>
+      </div>
+    </div>
+    <div class="sb-right-section">
+      <div class="label">Параметры</div>
+      <div class="sb-info-row"><span class="name">Творчество</span><span class="val" id="pcTemp">0.35</span></div>
+      <div class="sb-info-row"><span class="name">Top-p</span><span class="val" id="pcTopP">0.85</span></div>
+      <div class="sb-info-row"><span class="name">Макс.</span><span class="val" id="pcMaxTok">250</span></div>
+    </div>
+    <div class="sb-right-section">
+      <div class="label">Настройки</div>
+      <div class="sb-toggle-row"><span>Фог</span><div class="toggle on" id="toggleFogIndicatorPC"></div></div>
+      <div class="sb-toggle-row"><span>Анимации</span><div class="toggle on" id="toggleAnimationsPC"></div></div>
+    </div>
+    <div class="sb-right-section"><button class="danger-btn" id="resetChatBtnPC" style="margin-top:8px;">Сбросить диалог</button></div>
+  </aside>
+
+</div>
+
+<div class="drawer-overlay" id="drawerOverlay"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <div class="logo-box"><svg viewBox="0 0 16 16" shape-rendering="crispEdges"><rect x="2" y="1" width="12" height="1" fill="#7ba87b" opacity="0.3"/><rect x="1" y="2" width="14" height="1" fill="#7ba87b" opacity="0.5"/><rect x="0" y="4" width="16" height="1" fill="#7ba87b" opacity="0.7"/><rect x="0" y="6" width="16" height="1" fill="#7ba87b"/><rect x="4" y="6" width="2" height="2" fill="#0a0c0a"/><rect x="10" y="6" width="2" height="2" fill="#0a0c0a"/></svg></div>
+    <div><div class="drawer-title">МуриноБот</div><div class="drawer-subtitle">v18.0 FINAL</div></div>
+  </div>
+  <nav class="drawer-nav">
+    <button class="drawer-item" data-screen="chatScreen"><span class="icon">💬</span> Чат</button>
+    <button class="drawer-item" data-screen="archiveScreen"><span class="icon">📚</span> Архив</button>
+    <button class="drawer-item" data-screen="settingsScreen"><span class="icon">⚙️</span> Настройки</button>
+    <button class="drawer-item" data-screen="helpScreen"><span class="icon">📖</span> Справка</button>
+  </nav>
+  <div class="drawer-footer"><div class="quote" id="footerQuote">«Справочная работает круглосуточно.»</div><div id="footerId">Сборка 1488</div></div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module">
+import { pipeline, env, TextStreamer } from 'https://esm.run/@huggingface/transformers@3.0.0';
+
+env.allowLocalModels = false;
+env.useBrowserCache = true;
+
+const DEFAULTS = {
+  theme: 'dark', accent: 'green', fontSize: 15, radius: 18, gap: 12,
+  temperature: 0.35, topP: 0.85, repPenalty: 1.4, maxTokens: 250,
+  autoscroll: true, copyOnTap: true, saveChat: true,
+  quickBtns: true, fogIndicator: true, animations: true
+};
+const settings = {};
+Object.keys(DEFAULTS).forEach(k => {
+  const v = localStorage.getItem('murino_' + k);
+  if (v === null) settings[k] = DEFAULTS[k];
+  else if (typeof DEFAULTS[k] === 'boolean') settings[k] = v === 'true';
+  else if (typeof DEFAULTS[k] === 'number') settings[k] = parseFloat(v);
+  else settings[k] = v;
+});
+function saveSetting(k, v) { localStorage.setItem('murino_' + k, String(v)); }
+
+const ACCENTS = {
+  green: ['#7ba87b', '#4a7a4a', 'rgba(123,168,123,0.25)'],
+  blue: ['#6a9ac8', '#3a5a8a', 'rgba(106,154,200,0.25)'],
+  purple: ['#9a7ac8', '#5a3a8a', 'rgba(154,122,200,0.25)'],
+  red: ['#c87a7a', '#8a3a3a', 'rgba(200,122,122,0.25)'],
+  orange: ['#c89a5a', '#8a5a2a', 'rgba(200,154,90,0.25)'],
+  pink: ['#c87aa8', '#8a3a6a', 'rgba(200,122,168,0.25)'],
+  teal: ['#5ac8b8', '#2a7a6a', 'rgba(90,200,184,0.25)'],
+  gray: ['#8a9a8a', '#5a6a5a', 'rgba(138,154,138,0.25)']
+};
+function applyTheme(theme) {
+  document.body.dataset.theme = theme;
+  const colors = { dark: '#0a0c0a', light: '#f5f6f4', black: '#000000', murino: '#0a140a' };
+  document.getElementById('themeColorMeta').setAttribute('content', colors[theme] || '#0a0c0a');
+  document.querySelectorAll('.theme-option').forEach(o => o.classList.toggle('selected', o.dataset.themeName === theme));
+  document.querySelectorAll('.sb-theme-btn').forEach(o => o.classList.toggle('selected', o.dataset.t === theme));
+}
+function applyAccent(accent) {
+  const [a, dim, glow] = ACCENTS[accent] || ACCENTS.green;
+  document.documentElement.style.setProperty('--accent', a);
+  document.documentElement.style.setProperty('--accent-dim', dim);
+  document.documentElement.style.setProperty('--accent-glow', glow);
+  document.querySelectorAll('.accent-btn').forEach(b => b.classList.toggle('selected', b.dataset.accent === accent));
+}
+function applyFontSize(size) {
+  document.documentElement.style.setProperty('--msg-size', size + 'px');
+  document.documentElement.style.setProperty('--font-size', size + 'px');
+  const f1 = document.getElementById('fontSlider'); if (f1) f1.value = size;
+  const fv = document.getElementById('fontVal'); if (fv) fv.textContent = size;
+}
+function applyRadius(r) {
+  document.documentElement.style.setProperty('--radius-bubble', r + 'px');
+  document.documentElement.style.setProperty('--radius-card', Math.round(r * 0.66) + 'px');
+  const rs = document.getElementById('radiusSlider'); if (rs) rs.value = r;
+  const rv = document.getElementById('radiusVal'); if (rv) rv.textContent = r;
+}
+function applyGap(g) {
+  document.documentElement.style.setProperty('--gap-msg', g + 'px');
+  const gs = document.getElementById('gapSlider'); if (gs) gs.value = g;
+  const gv = document.getElementById('gapVal'); if (gv) gv.textContent = g;
+}
+function applyAnimations(on) { document.body.classList.toggle('no-animations', !on); }
+function applyToggles() {
+  const set = (id, on) => { const el = document.getElementById(id); if (el) el.classList.toggle('on', on); };
+  set('toggleAutoscroll', settings.autoscroll);
+  set('toggleCopyOnTap', settings.copyOnTap);
+  set('toggleSaveChat', settings.saveChat);
+  set('toggleQuickBtns', settings.quickBtns);
+  set('toggleFogIndicator', settings.fogIndicator);
+  set('toggleAnimations', settings.animations);
+  set('toggleFogIndicatorPC', settings.fogIndicator);
+  set('toggleAnimationsPC', settings.animations);
+  const qa = document.getElementById('quickActions');
+  if (qa) qa.classList.toggle('hidden', !settings.quickBtns);
+  document.querySelectorAll('.fog-indicator').forEach(el => el.classList.toggle('hidden', !settings.fogIndicator));
+}
+
+applyTheme(settings.theme); applyAccent(settings.accent);
+applyFontSize(settings.fontSize); applyRadius(settings.radius); applyGap(settings.gap);
+applyAnimations(settings.animations); applyToggles();
+
+const SYSTEM_PROMPT = `Ты — ассистент администрации Мурино. Отвечай кратко и по факту, как сотрудник справочной.
+
+Правила языка:
+- Существительные длиннее 3 букв получают суффикс -ость. Пример: кот → котость, дом → домость.
+- Я → Ч. Друг → друн. Дед → дод.
+- Глаголы НЕ изменяются.
+
+Знай про Мурино:
+- Мурино — город из бесконечных гигахрущёвок. Выход: трамвай до Села Молочного, лифт на 1488 этаже, пешком к Мытищам.
+- На 666 этаже обитает Фог — туман-полубог, главный враг. THE FOG IS COMING.
+- 1488 этаж — технический, курьеры туда не ходят.
+- Божество Мурино — Малекус.
+- Сезоны: Темщики, Армия, Общага, Мурино, Село Молочное, Мытищи, Элджеевка.
+- Персонажи: Ч, Друн, Батч, Дод, Котость (кот Куки), Артур, Мойдодыр. Бурмалда — казино, где нельзя выиграть.
+
+Отвечай 2–4 предложениями. Без метафор, без философии.`;
+
+const LOADING_STAGES = ["Сверяюсь с архивом...", "Проверяю, где Фог...", "Слушаю 666 этаж...", "Котость подтверждает данные...", "Смотрю в окность...", "Считаю этажи..."];
+const GREETINGS = ["Привит. Справочная на связи.", "Привит. Линия активна.", "Привит. Ассистент готов.", "Привит. Система готова."];
+const FOOTER_QUOTES = ['«Справочная работает круглосуточно.»', '«Линия связи активна.»', '«Реестр обновлён.»', '«Все данные проверены.»'];
+const FOOTER_IDS = ['Сборка 1488', 'Сборка 666', 'Сборка 6/9'];
+
+let generator = null;
+let isSending = false;
+let messageCount = 0;
+let toastTimer = null;
+let fogLevel = 'низкий';
+let fogValue = 0;
+let chatHistory = [];
+
+const messagesEl = document.getElementById('messages');
+const inputEl = document.getElementById('input');
+const sendBtn = document.getElementById('sendBtn');
+const progressPanel = document.getElementById('progressPanel');
+const progressStage = document.getElementById('progressStage');
+const progressFile = document.getElementById('progressFile');
+const progressBar = document.getElementById('progressBar');
+const progressPercent = document.getElementById('progressPercent');
+const drawer = document.getElementById('drawer');
+const drawerOverlay = document.getElementById('drawerOverlay');
+const toast = document.getElementById('toast');
+const factFog = document.getElementById('factFog');
+
+function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function showToast(text) { toast.textContent = text; toast.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove('show'), 3500); }
+function setStage(stage, file = '', percent = null) { progressStage.textContent = stage; progressFile.textContent = file; if (percent !== null) { const p = Math.max(0, Math.min(100, percent)); progressBar.style.width = p + '%'; progressPercent.textContent = Math.round(p) + '%'; } }
+function addMsg(text, cls, save = true) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + cls;
+  div.textContent = text;
+  if (settings.copyOnTap) { div.addEventListener('click', async () => { try { await navigator.clipboard.writeText(text); div.classList.add('copied'); setTimeout(() => div.classList.remove('copied'), 1500); } catch(e){} }); }
+  messagesEl.appendChild(div);
+  if (settings.autoscroll) messagesEl.scrollTop = messagesEl.scrollHeight;
+  if (save) { chatHistory.push({ type: cls, text }); if (settings.saveChat) localStorage.setItem('murino_history', JSON.stringify(chatHistory.slice(-50))); }
+  return div;
+}
+function addTypingIndicator() {
+  const div = document.createElement('div');
+  div.className = 'msg bot';
+  div.innerHTML = '<span class="typing"><span></span><span></span><span></span></span>';
+  messagesEl.appendChild(div);
+  if (settings.autoscroll) messagesEl.scrollTop = messagesEl.scrollHeight;
+  return div;
+}
+function updateFog() {
+  fogValue += Math.random() * 20 - 8;
+  if (fogValue < 0) fogValue = 0; if (fogValue > 100) fogValue = 100;
+  if (fogValue < 33) fogLevel = 'низкий'; else if (fogValue < 66) fogLevel = 'средний'; else fogLevel = 'высокий';
+  const m = document.getElementById('fogIndicatorMobile'); if (m) m.dataset.level = fogLevel;
+  const pc = document.getElementById('fogIndicatorPC'); if (pc) pc.dataset.level = fogLevel;
+  const ml = document.getElementById('fogLabelMobile'); if (ml) ml.textContent = 'Фог: ' + fogLevel;
+  const pl = document.getElementById('fogLabelPC'); if (pl) pl.textContent = 'Фог: ' + fogLevel;
+  if (factFog) factFog.textContent = fogLevel.charAt(0).toUpperCase() + fogLevel.slice(1);
+}
+
+document.querySelectorAll('.theme-option').forEach(o => o.addEventListener('click', () => { settings.theme = o.dataset.themeName; saveSetting('theme', settings.theme); applyTheme(settings.theme); showToast('Тема: ' + o.textContent.trim()); }));
+document.querySelectorAll('.sb-theme-btn').forEach(o => o.addEventListener('click', () => { settings.theme = o.dataset.t; saveSetting('theme', settings.theme); applyTheme(settings.theme); }));
+document.querySelectorAll('.accent-btn').forEach(b => b.addEventListener('click', () => { settings.accent = b.dataset.accent; saveSetting('accent', settings.accent); applyAccent(settings.accent); }));
+
+function bindSlider(id, valId, key, apply, format = v => v) {
+  const el = document.getElementById(id); if (!el) return;
+  const vEl = document.getElementById(valId);
+  el.value = settings[key];
+  if (vEl) vEl.textContent = format(settings[key]);
+  el.addEventListener('input', e => {
+    settings[key] = parseFloat(e.target.value);
+    saveSetting(key, settings[key]);
+    if (vEl) vEl.textContent = format(settings[key]);
+    apply(settings[key]); updatePCRow();
+  });
+}
+function updatePCRow() {
+  const t = document.getElementById('pcTemp'); if (t) t.textContent = settings.temperature.toFixed(2);
+  const p = document.getElementById('pcTopP'); if (p) p.textContent = settings.topP.toFixed(2);
+  const m = document.getElementById('pcMaxTok'); if (m) m.textContent = settings.maxTokens;
+}
+bindSlider('fontSlider', 'fontVal', 'fontSize', applyFontSize, v => v);
+bindSlider('radiusSlider', 'radiusVal', 'radius', applyRadius, v => v);
+bindSlider('gapSlider', 'gapVal', 'gap', applyGap, v => v);
+bindSlider('tempSlider', 'tempVal', 'temperature', () => updatePCRow(), v => v.toFixed(2));
+bindSlider('topPSlider', 'topPVal', 'topP', () => updatePCRow(), v => v.toFixed(2));
+bindSlider('repSlider', 'repVal', 'repPenalty', () => {}, v => v.toFixed(2));
+bindSlider('maxTokSlider', 'maxTokVal', 'maxTokens', () => updatePCRow(), v => v);
+updatePCRow();
+
+function bindToggle(id, key) {
+  const el = document.getElementById(id); if (!el) return;
+  el.addEventListener('click', () => { settings[key] = !settings[key]; saveSetting(key, settings[key]); applyToggles(); if (key === 'animations') applyAnimations(settings.animations); });
+}
+['autoscroll','copyOnTap','saveChat','quickBtns','fogIndicator','animations'].forEach(k => {
+  const cap = k.charAt(0).toUpperCase() + k.slice(1);
+  bindToggle('toggle' + cap, k);
+});
+bindToggle('toggleFogIndicatorPC', 'fogIndicator');
+bindToggle('toggleAnimationsPC', 'animations');
+
+document.getElementById('menuBtn').addEventListener('click', () => { drawer.classList.add('open'); drawerOverlay.classList.add('open'); document.getElementById('footerQuote').textContent = pickRandom(FOOTER_QUOTES); document.getElementById('footerId').textContent = pickRandom(FOOTER_IDS); });
+drawerOverlay.addEventListener('click', () => { drawer.classList.remove('open'); drawerOverlay.classList.remove('open'); });
+document.querySelectorAll('.drawer-item').forEach(item => item.addEventListener('click', () => navigateTo(item.dataset.screen)));
+document.querySelectorAll('.sb-nav-btn').forEach(item => item.addEventListener('click', () => navigateTo(item.dataset.screen)));
+function navigateTo(screen) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(screen).classList.add('active');
+  document.querySelectorAll('.sb-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.screen === screen));
+  drawer.classList.remove('open'); drawerOverlay.classList.remove('open');
+}
+document.querySelectorAll('.quick-btn, .sb-quick-btn').forEach(btn => btn.addEventListener('click', () => {
+  if (isSending || !generator) return;
+  if (!document.getElementById('chatScreen').classList.contains('active')) navigateTo('chatScreen');
+  inputEl.value = btn.dataset.q; send();
+}));
+let logoClicks = 0;
+['logoBox', 'logoBoxPC'].forEach(id => { const el = document.getElementById(id); if (el) el.addEventListener('click', () => { logoClicks++; if (logoClicks % 3 === 0) showToast(pickRandom(['6/9','Котость спит...','1488','THE FOG IS COMING'])); }); });
+document.getElementById('welcomeEgg').textContent = pickRandom(['ЛИНИЯ СВЯЗИ АКТИВНА','РЕЕСТР ОБНОВЛЁН','6/9','СБОРКА 1488']);
+updateFog();
+
+async function loadModel() {
+  try {
+    progressPanel.classList.add('show');
+    setStage('Этап 1/4 · Подключение', 'transformers.js v3', 5);
+    await new Promise(r => setTimeout(r, 300));
+    let filesDone = 0;
+    const progressCb = (p) => {
+      const fileName = (p.file || '').split('/').pop();
+      if (p.status === 'initiate') setStage(`Этап 2/4 · Инициализация`, fileName, Math.min(10 + filesDone * 10, 70));
+      else if (p.status === 'progress') { const o = 10 + filesDone * 10 + (p.progress || 0) * 0.1; setStage(`Этап 2/4 · Загрузка`, fileName, Math.min(o, 70)); }
+      else if (p.status === 'done') { filesDone++; setStage(`Этап 2/4 · Файл ${filesDone} готов`, fileName, Math.min(10 + filesDone * 10, 70)); }
+      else if (p.status === 'ready') setStage('Этап 2/4 · Все файлы загружены', '', 70);
+    };
+    setStage('Этап 2/4 · Запуск на CPU (WASM)', 'Qwen2.5-0.5B (~483 МБ)', 10);
+    generator = await pipeline('text-generation', 'onnx-community/Qwen2.5-0.5B-Instruct', { dtype: 'q4', device: 'wasm', progress_callback: progressCb });
+    setStage('Этап 3/4 · Загрузка в память', 'инициализация...', 85);
+    await new Promise(r => setTimeout(r, 500));
+    setStage('Этап 4/4 · Готово', 'модель запущена', 100);
+    await new Promise(r => setTimeout(r, 600));
+    progressPanel.classList.remove('show');
+    addMsg(pickRandom(GREETINGS), 'bot');
+    inputEl.disabled = false; sendBtn.disabled = false;
+    inputEl.placeholder = 'Введите ваш вопрос...';
+    inputEl.focus();
+    document.getElementById('headerSub').textContent = 'FINAL · готова';
+  } catch (e) {
+    setStage('Ошибка загрузки', e.message, 0);
+    console.error(e);
+    addMsg('Не удалось запустить модель: ' + e.message, 'bot');
+  }
+}
+
+async function send() {
+  if (isSending) return;
+  const text = inputEl.value.trim();
+  if (!text || !generator) return;
+  isSending = true;
+  inputEl.value = '';
+  inputEl.disabled = true;
+  sendBtn.disabled = true;
+  addMsg(text, 'user');
+  messageCount++;
+  updateFog();
+  const mcp = document.getElementById('msgCountPC'); if (mcp) mcp.textContent = messageCount;
+  const botDiv = addTypingIndicator();
+  const typingStartTime = Date.now();
+  let firstChunk = true;
+  let fullText = '';
+
+  try {
+    const messages = [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: text }];
+    const streamer = new TextStreamer(generator.tokenizer, {
+      skip_prompt: true,
+      skip_special_tokens: true,
+      callback_function: (chunk) => {
+        if (firstChunk) {
+          const remaining = Math.max(0, 800 - (Date.now() - typingStartTime));
+          setTimeout(() => {
+            botDiv.innerHTML = '';
+            fullText = chunk;
+            botDiv.textContent = fullText;
+            if (settings.autoscroll) messagesEl.scrollTop = messagesEl.scrollHeight;
+          }, remaining);
+          firstChunk = false;
+        } else {
+          fullText += chunk;
+          if (!botDiv.querySelector('.typing')) {
+            botDiv.textContent = fullText;
+            if (settings.autoscroll) messagesEl.scrollTop = messagesEl.scrollHeight;
+          }
+        }
+      }
+    });
+
+    await generator(messages, {
+      max_new_tokens: settings.maxTokens,
+      temperature: settings.temperature,
+      do_sample: true,
+      top_p: settings.topP,
+      repetition_penalty: settings.repPenalty,
+      streamer: streamer
+    });
+
+    if (!fullText.trim()) { botDiv.innerHTML = ''; botDiv.textContent = 'Нрт.'; }
+    else if (botDiv.querySelector('.typing')) { botDiv.innerHTML = ''; botDiv.textContent = fullText; }
+
+    chatHistory.push({ type: 'bot', text: fullText });
+    if (settings.saveChat) localStorage.setItem('murino_history', JSON.stringify(chatHistory.slice(-50)));
+    if (settings.copyOnTap) { botDiv.addEventListener('click', async () => { try { await navigator.clipboard.writeText(fullText); botDiv.classList.add('copied'); setTimeout(() => botDiv.classList.remove('copied'), 1500); } catch(e){} }); }
+  } catch (e) {
+    botDiv.innerHTML = '';
+    botDiv.textContent = 'Ошибка: ' + e.message;
+  } finally {
+    isSending = false;
+    inputEl.disabled = false;
+    sendBtn.disabled = false;
+    inputEl.focus();
+  }
+}
+
+document.getElementById('startBtn').addEventListener('click', async () => {
+  document.getElementById('welcomeScreen').classList.remove('active');
+  document.getElementById('chatScreen').classList.add('active');
+  document.querySelectorAll('.sb-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.screen === 'chatScreen'));
+  if (settings.saveChat) {
+    try {
+      const saved = localStorage.getItem('murino_history');
+      if (saved) {
+        chatHistory = JSON.parse(saved);
+        chatHistory.forEach(m => { const div = document.createElement('div'); div.className = 'msg ' + m.type; div.textContent = m.text; messagesEl.appendChild(div); });
+      }
+    } catch(e) {}
+  }
+  await loadModel();
+});
+
+sendBtn.addEventListener('click', (e) => { e.preventDefault(); send(); });
+inputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); send(); } });
+
+document.getElementById('exportChatBtn').addEventListener('click', () => {
+  if (!chatHistory.length) { showToast('Диалог пуст'); return; }
+  const blob = new Blob([JSON.stringify(chatHistory, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'murino-chat-' + Date.now() + '.json'; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 100);
+  showToast('Сохранено');
+});
+document.getElementById('importChatBtn').addEventListener('click', () => document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change', (e) => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!Array.isArray(data)) throw new Error('Неверный формат');
+      chatHistory = data;
+      messagesEl.innerHTML = '';
+      data.forEach(m => { const div = document.createElement('div'); div.className = 'msg ' + m.type; div.textContent = m.text; messagesEl.appendChild(div); });
+      localStorage.setItem('murino_history', JSON.stringify(data.slice(-50)));
+      showToast('Загружено: ' + data.length);
+    } catch (err) { showToast('Ошибка: ' + err.message); }
+  };
+  reader.readAsText(file);
+});
+
+function resetChat() {
+  if (isSending) return;
+  messagesEl.innerHTML = ''; chatHistory = []; messageCount = 0; fogValue = 0;
+  localStorage.removeItem('murino_history'); updateFog();
+  addMsg('Диалог сброшен. Справочная на связи.', 'bot');
+  const mcp = document.getElementById('msgCountPC'); if (mcp) mcp.textContent = '0';
+  drawer.classList.remove('open'); drawerOverlay.classList.remove('open');
+}
+document.getElementById('resetChatBtn').addEventListener('click', resetChat);
+const rpc = document.getElementById('resetChatBtnPC'); if (rpc) rpc.addEventListener('click', resetChat);
+
+document.getElementById('resetAllBtn').addEventListener('click', () => {
+  if (!confirm('Сбросить все настройки и диалог?')) return;
+  Object.keys(DEFAULTS).forEach(k => localStorage.removeItem('murino_' + k));
+  localStorage.removeItem('murino_history');
+  location.reload();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { drawer.classList.remove('open'); drawerOverlay.classList.remove('open'); }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'l') { e.preventDefault(); resetChat(); }
+});
+</script>
+</body>
+</html>
